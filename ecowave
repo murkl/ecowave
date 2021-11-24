@@ -1,0 +1,336 @@
+#!/bin/bash
+SCRIPT_TITLE="EcoWave"
+SCRIPT_ID="ecowave"
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# VARIABLES
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
+SCRIPT_FILE="$SCRIPT_DIR/$(basename "$0")"
+SCRIPT_HOME="$HOME/.config/$SCRIPT_ID"
+SCRIPT_CONFIG="$SCRIPT_HOME/config"
+SCRIPT_ICON="$SCRIPT_ID"
+
+SYSTEMD_SERVICE_NAME='ecowave.service'
+SYSTEMD_SERVICE_FILE="/etc/systemd/system/$SYSTEMD_SERVICE_NAME"
+
+# CONFIG
+WLAN_MODULE=''
+POWER_MAX=''
+AUTOSTART_ENABLED=''
+DESKTOP_ICON=''
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# WRAPPER
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+log() {
+	printf '%s\n' "$(date "+%Y-%m-%d %H:%M:%S") $SCRIPT_ID | $1"
+}
+
+notify() {
+	log "$1"
+	notify-send --icon="$SCRIPT_ICON" "$SCRIPT_TITLE" "$1"
+}
+
+zenity() {
+	/usr/bin/zenity --name="$SCRIPT_ID" --width=400 --height=200 --title='' --text='' --window-icon="$SCRIPT_ICON" "$@" 2>/dev/null
+}
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# DEPENDENCIES
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+if ! [ -x "$(command -v /usr/bin/zenity)" ]; then
+	notify "Error: <b>zenity</b> not installed"
+	exit 1
+fi
+
+if ! [ -x "$(command -v iw)" ]; then
+	notify "Error: <b>iw</b> not installed"
+	exit 1
+fi
+
+if ! [ -x "$(command -v iwconfig)" ]; then
+	notify "Error: <b>wireless_tools</b> not installed"
+	exit 1
+fi
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# FUNCTIONS
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+main() {
+
+	# INIT CONFIG
+	if ! init_config; then
+		exit 1
+	fi
+
+	# TITLE
+	txt_title='\t\t\t\t    <span font_family="monospace" foreground="#A3BE8C" font="12"><b>'$SCRIPT_TITLE'</b></span>'
+
+	# ESSID
+	essid_value=$(iwconfig $WLAN_MODULE | grep -e 'ESSID:*' | cut -d':' -f2 | cut -d'"' -f2)
+	if [[ "$essid_value" = *"off/any"* ]]; then
+		set_config "WLAN_MODULE" ''
+		notify "ESSID not found. WLAN Module connected?"
+		main
+		return
+	fi
+
+	essid_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">ESSID:</span>'
+	essid_txt=$essid_txt_title'     <span font_family="monospace" foreground="#2E3440" font="9"><b>'$essid_value'</b></span>'
+
+	# MODULE
+	wlan_module_txt=''
+	if [ "$WLAN_MODULE" != "" ]; then
+		essid_value=$(iwconfig $WLAN_MODULE | grep -e 'ESSID:*' | cut -d':' -f2 | cut -d'"' -f2)
+		wlan_module_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">Module:</span>'
+		wlan_module_txt=$wlan_module_txt_title'   <span font_family="monospace" foreground="#2E3440" font="9"><b>'$WLAN_MODULE'</b></span>'
+	fi
+
+	# BIT RATE INFO
+	bit_rate_value=$(iwconfig $WLAN_MODULE | grep -o 'Bit Rate=[0-9]*' | cut -d'=' -f2)
+	if [ "$bit_rate_value" = "" ]; then
+		set_config "WLAN_MODULE" ''
+		notify "WLAN Bit Rate not found. WLAN Module down?"
+		main
+		return
+	fi
+	bit_rate_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">Rate:</span>'
+	bit_rate_txt=$bit_rate_txt_title'        <span font_family="monospace" foreground="#2E3440" font="9"><b>'$bit_rate_value' Mb/s</b></span>'
+
+	# TX POWER INFO
+	tx_power_value=$(iwconfig $WLAN_MODULE | grep -o 'Tx-Power=[0-9]*' | cut -d'=' -f2)
+	if [ "$tx_power_value" = "" ]; then
+		set_config "WLAN_MODULE" ''
+		notify "WLAN TX POWER not found. WLAN Module down?"
+		main
+		return
+	fi
+	tx_power_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">Power:</span>'
+	tx_power_txt=$tx_power_txt_title'     <span font_family="monospace" foreground="#2E3440" font="9"><b>'$tx_power_value' dBm</b></span>'
+
+	# HEADER
+	header_txt="$txt_title\n\n$essid_txt\n$wlan_module_txt\n$bit_rate_txt\n$tx_power_txt"
+
+	# SET MAX VALUE
+	if [ $tx_power_value -gt $POWER_MAX ]; then
+		tx_power_value=$POWER_MAX
+	fi
+
+	# ZENITY
+	zenity_result=$(zenity --scale --min-value=1 --max-value=$POWER_MAX --value="$tx_power_value" --step 1 --cancel-label='Exit' --extra-button='Settings ➤' --ok-label='Save' --text="$header_txt")
+
+	# ZENITY RESULT
+	zenity_result_button="${?}-${zenity_result}"
+	case "$zenity_result_button" in
+	'1-')
+		return 1
+		;;
+	'0-'*)
+		set_tx_power "$zenity_result"
+		;;
+	'1-Settings'*)
+		if settings_result=$(zenity --text-info --width=400 --height=200 --title="Settings" --ok-label="Save" --cancel-label="Back" --font="monospace" --editable --filename="$SCRIPT_CONFIG"); then
+			echo "$settings_result" >"$SCRIPT_CONFIG"
+			notify "Settings saved"
+		fi
+		main
+		;;
+	esac
+}
+
+#--------------------------------------------------------------
+
+init_config() {
+
+	# Defaults
+	WLAN_MODULE=''
+	POWER_MAX='10'
+	AUTOSTART_ENABLED='true'
+	DESKTOP_ICON='true'
+
+	# Create dirs
+	mkdir -p "$SCRIPT_HOME"
+
+	# Check config
+	check_config "WLAN_MODULE" "$WLAN_MODULE"
+	check_config "POWER_MAX" "$POWER_MAX"
+	check_config "AUTOSTART_ENABLED" "$AUTOSTART_ENABLED"
+	check_config "DESKTOP_ICON" "$DESKTOP_ICON"
+
+	# Import script config file
+	. "$SCRIPT_CONFIG"
+
+	# CHOOSE WLAN MODULE
+	if [ "$WLAN_MODULE" = "" ]; then
+		interface_array=()
+		while read wlan_line; do
+			interface_array+=("$wlan_line")
+		done < <(ip link | awk -F: '$0 !~ "lo|vir|tun|enp|^[^0-9]"{print $2;getline}')
+
+		if ! interface="$(zenity --width=250 --height=200 --list --hide-header --column="" --title="WLAN Module" --cancel-label='Cancel' --ok-label='Save' "${interface_array[@]}")"; then
+			return 1
+		fi
+
+		if [ "$interface" = "" ]; then
+			notify "Interface was empty"
+			return 1
+		fi
+
+		# Set new interface in config file
+		set_config "WLAN_MODULE" "$interface"
+
+		# Reload config
+		. "$SCRIPT_CONFIG"
+
+		log "New Interface $interface"
+	fi
+
+	# CHECK WLAN MODULE
+	if [ "$WLAN_MODULE" != "" ]; then
+		module_checked=false
+		interface_array=()
+		while read wlan_line; do
+			if [ "$wlan_line" = "$WLAN_MODULE" ]; then
+				log "WLAN Module found: $WLAN_MODULE"
+				module_checked=true
+				break
+			fi
+		done < <(ip link | awk -F: '$0 !~ "lo|vir|tun|enp|^[^0-9]"{print $2;getline}')
+
+		if [ "$module_checked" = "false" ]; then
+			notify "WLAN Module not found"
+			set_config "WLAN_MODULE" ''
+			init_config
+			return
+		fi
+	fi
+
+	# Create or remove desktop icon
+	desktop_file="$HOME/.local/share/applications/$SCRIPT_ID.desktop"
+	if [ "$DESKTOP_ICON" = "true" ]; then
+		if [ ! -f "$desktop_file" ]; then
+			{
+				echo "[Desktop Entry]"
+				echo "Name=$SCRIPT_TITLE"
+				echo "Icon=$SCRIPT_ICON"
+				echo "Exec=$SCRIPT_ID"
+				echo "Type=Application"
+			} >>"$desktop_file"
+			chmod +x "$desktop_file"
+			log "$desktop_file created"
+			notify "Desktop File created"
+		fi
+	else
+		if [ -f "$desktop_file" ]; then
+			rm -f "$desktop_file"
+			log "$desktop_file removed"
+			notify "Desktop File removed"
+		fi
+	fi
+}
+
+#--------------------------------------------------------------
+
+set_tx_power() {
+	tx_power="$1"
+
+	# ROOT PASSWORD
+	root_password=''
+	if ! root_password="$(zenity --width=280 --height=120 --entry --hide-text --text='Enter Root Password')"; then
+		main
+		return 1
+	fi
+
+	# CHECK ROOT PASSWORD
+	if ! check_root_password "$root_password"; then
+		main
+		return 1
+	else
+
+		# CREATE SERVICE
+		if [ "$AUTOSTART_ENABLED" = "true" ]; then
+
+			# Disable Serivice
+			sh -c "echo $root_password | sudo -S systemctl disable $SYSTEMD_SERVICE_NAME"
+
+			# Create Service file
+			{
+				echo '[Unit]'
+				echo 'Description=ecowave-systemd-service'
+				echo 'Wants=network-online.target'
+				echo 'After=network-online.target'
+
+				echo '[Service]'
+				echo 'Type=idle'
+				echo 'ExecStart=iwconfig '$WLAN_MODULE' txpower '$tx_power''
+
+				echo '[Install]'
+				echo 'WantedBy=network-online.target'
+			} >"/tmp/$SCRIPT_ID.systemd"
+			sh -c "echo $root_password | sudo -S cp /tmp/$SCRIPT_ID.systemd $SYSTEMD_SERVICE_FILE"
+
+			# Start service
+			sh -c "echo $root_password | sudo -S chmod 644 $SYSTEMD_SERVICE_FILE"
+			sh -c "echo $root_password | sudo -S systemctl enable --now $SYSTEMD_SERVICE_NAME"
+		else
+			# Disable & Remove Service
+			sh -c "echo $root_password | sudo -S systemctl disable --now $SYSTEMD_SERVICE_NAME"
+			sh -c "echo $root_password | sudo -S rm -f $SYSTEMD_SERVICE_FILE"
+
+			# SET TX POWER MANUAL
+			sh -c "echo $root_password | sudo -S iwconfig $WLAN_MODULE txpower $tx_power"
+		fi
+
+		# SUCCESS
+		notify "Power set to <b>$tx_power dBm</b>"
+		main
+
+	fi
+}
+
+#------------------------------------------------------------
+
+check_root_password() {
+	if [ "$1" = "" ]; then
+		notify "Root Password was empty"
+		return 1
+	fi
+	if ! echo "$1" | sudo -S true; then
+		notify "Root Password was wrong"
+		return 1
+	else
+		log "Root password correct..."
+		return 0
+	fi
+}
+
+#------------------------------------------------------------
+
+set_config() {
+	key="$1"
+	value="$2"
+	check_config "$key" "$value"
+	sed -i "s#$key=.*#$key=\"$value\"#g" "$SCRIPT_CONFIG"
+}
+
+#------------------------------------------------------------
+
+check_config() {
+	config_key="$1"
+	config_value="$2"
+	mkdir -p "$SCRIPT_HOME" && touch "$SCRIPT_CONFIG"
+	if ! grep -qrnw "$SCRIPT_CONFIG" -e "$config_key=*"; then
+		echo "$config_key=\"$config_value\"" >>"$SCRIPT_CONFIG"
+	fi
+}
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# MAIN
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+main "$@"
