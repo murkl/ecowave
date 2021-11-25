@@ -40,25 +40,6 @@ zenity() {
 }
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-# DEPENDENCIES
-#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
-if ! [ -x "$(command -v /usr/bin/zenity)" ]; then
-	notify "Error: <b>zenity</b> not installed"
-	exit 1
-fi
-
-if ! [ -x "$(command -v iw)" ]; then
-	notify "Error: <b>iw</b> not installed"
-	exit 1
-fi
-
-if ! [ -x "$(command -v iwconfig)" ]; then
-	notify "Error: <b>wireless_tools</b> not installed"
-	exit 1
-fi
-
-#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 # FUNCTIONS
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -334,7 +315,7 @@ check_config() {
 }
 
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-# MAIN
+# ARGUMENTS
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 if [ "$1" = "--install" ]; then
@@ -346,5 +327,28 @@ if [ "$1" = "--remove" ]; then
 	remove_desktop_file
 	exit 0
 fi
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# DEPENDENCIES
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+if ! [ -x "$(command -v /usr/bin/zenity)" ]; then
+	notify "Error: <b>zenity</b> not installed"
+	exit 1
+fi
+
+if ! [ -x "$(command -v iw)" ]; then
+	notify "Error: <b>iw</b> not installed"
+	exit 1
+fi
+
+if ! [ -x "$(command -v iwconfig)" ]; then
+	notify "Error: <b>wireless_tools</b> not installed"
+	exit 1
+fi
+
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# MAIN
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 main "$@"
