@@ -51,7 +51,7 @@ main() {
 	fi
 
 	# TITLE
-	txt_title='\t\t\t\t    <span font_family="monospace" foreground="#A3BE8C" font="12"><b>'$SCRIPT_TITLE'</b></span>'
+	txt_title='<span font_family="monospace" foreground="#6e6e6e" font="18"><b>'$SCRIPT_TITLE'</b></span>'
 
 	# ESSID
 	essid_value=$(iwconfig $WLAN_MODULE | grep -e 'ESSID:*' | cut -d':' -f2 | cut -d'"' -f2)
@@ -62,14 +62,14 @@ main() {
 		return
 	fi
 
-	essid_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">ESSID:</span>'
+	essid_txt_title='<span font_family="monospace" foreground="#2E3440" font="9">ESSID:</span>'
 	essid_txt=$essid_txt_title'     <span font_family="monospace" foreground="#2E3440" font="9"><b>'$essid_value'</b></span>'
 
 	# MODULE
 	wlan_module_txt=''
 	if [ "$WLAN_MODULE" != "" ]; then
 		essid_value=$(iwconfig $WLAN_MODULE | grep -e 'ESSID:*' | cut -d':' -f2 | cut -d'"' -f2)
-		wlan_module_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">Module:</span>'
+		wlan_module_txt_title='<span font_family="monospace" foreground="#2E3440" font="9">Module:</span>'
 		wlan_module_txt=$wlan_module_txt_title'   <span font_family="monospace" foreground="#2E3440" font="9"><b>'$WLAN_MODULE'</b></span>'
 	fi
 
@@ -81,7 +81,7 @@ main() {
 		main
 		return
 	fi
-	bit_rate_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">Rate:</span>'
+	bit_rate_txt_title='<span font_family="monospace" foreground="#2E3440" font="9">Rate:</span>'
 	bit_rate_txt=$bit_rate_txt_title'        <span font_family="monospace" foreground="#2E3440" font="9"><b>'$bit_rate_value' Mb/s</b></span>'
 
 	# TX POWER INFO
@@ -92,11 +92,11 @@ main() {
 		main
 		return
 	fi
-	tx_power_txt_title='  <span font_family="monospace" foreground="#2E3440" font="9">Power:</span>'
+	tx_power_txt_title='<span font_family="monospace" foreground="#2E3440" font="9">Power:</span>'
 	tx_power_txt=$tx_power_txt_title'     <span font_family="monospace" foreground="#2E3440" font="9"><b>'$tx_power_value' dBm</b></span>'
 
 	# HEADER
-	header_txt="$txt_title\n\n$essid_txt\n$wlan_module_txt\n$bit_rate_txt\n$tx_power_txt"
+	header_txt="\n$txt_title\n\n$essid_txt\n$wlan_module_txt\n$bit_rate_txt\n$tx_power_txt"
 
 	# SET MAX VALUE
 	if [ $tx_power_value -gt $POWER_MAX ]; then
