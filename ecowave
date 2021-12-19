@@ -82,7 +82,8 @@ main() {
 		return
 	fi
 	bit_rate_txt_title='<span font_family="monospace" foreground="#2E3440" font="9">Rate:</span>'
-	bit_rate_txt=$bit_rate_txt_title'        <span font_family="monospace" foreground="#2E3440" font="9"><b>'$bit_rate_value' Mb/s</b></span>'
+	bit_rate_value_mb=$(echo $((bit_rate_value / 8)))
+	bit_rate_txt=$bit_rate_txt_title'        <span font_family="monospace" foreground="#2E3440" font="9"><b>'$bit_rate_value_mb' Mb/s / '$bit_rate_value' Mbit/s</b> </span>'
 
 	# TX POWER INFO
 	tx_power_value=$(iwconfig $WLAN_MODULE | grep -o 'Tx-Power=[0-9]*' | cut -d'=' -f2)
