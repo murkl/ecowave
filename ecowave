@@ -51,7 +51,7 @@ main() {
 	fi
 
 	# TITLE
-	txt_title='<span font_family="monospace" foreground="#6e6e6e" font="18"><b>'$SCRIPT_TITLE'</b></span>'
+	txt_title='<span font_family="monospace" foreground="#494949" font="18"><b>'$SCRIPT_TITLE'</b></span>'
 
 	# ESSID
 	essid_value=$(iwconfig $WLAN_MODULE | grep -e 'ESSID:*' | cut -d':' -f2 | cut -d'"' -f2)
@@ -97,7 +97,7 @@ main() {
 	tx_power_txt=$tx_power_txt_title'     <span font_family="monospace" foreground="#2E3440" font="9"><b>'$tx_power_value' dBm</b></span>'
 
 	# HEADER
-	header_txt="\n$txt_title\n\n$essid_txt\n$wlan_module_txt\n$bit_rate_txt\n$tx_power_txt"
+	header_txt="\n$txt_title\n\n$essid_txt\n$wlan_module_txt\n$bit_rate_txt\n$tx_power_txt\n"
 
 	# SET MAX VALUE
 	if [ $tx_power_value -gt $POWER_MAX ]; then
