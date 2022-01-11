@@ -226,7 +226,7 @@ set_tx_power() {
 	tx_power="$1"
 
 	# ROOT PASSWORD
-	root_password=''
+	local root_password=''
 	if ! root_password="$(zenity --width=280 --height=120 --entry --hide-text --text='Enter Root Password')"; then
 		main
 		return 1
@@ -271,6 +271,9 @@ set_tx_power() {
 			# SET TX POWER MANUAL
 			sh -c "echo $root_password | sudo -S iwconfig $WLAN_MODULE txpower $tx_power"
 		fi
+
+		# Clear Root password
+		root_password=''
 
 		# SUCCESS
 		notify "Power set to <b>$tx_power dBm</b>"
